@@ -90,15 +90,14 @@ private:
 
 } DoubleBarrel;
 
-// Create the mActions map
+
 std::map<SuperShotgunState, std::function<void(sf::Event&)>> mActions;
 
 DoubleBarrel double_barrel{ SuperShotgunState::BarrelFull };
 
-// Function to read commands based on the current state
 void readCommand(sf::Event& input)
 {
-    auto currentState = double_barrel.getState(); // Get the current state of the shotgun
+    auto currentState = double_barrel.getState();
     if (mActions.find(currentState) != mActions.end())
     {
         mActions[currentState](input); // Call the action for the current state
@@ -172,7 +171,7 @@ int main(void)
         {
             if (input.type == sf::Event::MouseButtonPressed && input.mouseButton.button == sf::Mouse::Left)
             {
-                double_barrel.click(); // Handle shooting
+                double_barrel.click();
             }
         };
 
@@ -180,22 +179,25 @@ int main(void)
         {
             if (input.type == sf::Event::KeyPressed && input.key.code == sf::Keyboard::R)
             {
-                double_barrel.reload(); // Handle reloading
+                double_barrel.reload();
             }
         };
 
-    mActions[SuperShotgunState::Reloading] = [&](sf::Event& input)
-        {
-            // Maybe prevent any action while reloading
-        };
 
-    // Main loop
+    // loop :
+    // - print state each second.
+    // - get user input: Click/Reload/Quit
     while (window.isOpen())
     {
         sf::Event event;
         while (window.pollEvent(event))
         {
             if (event.type == sf::Event::Closed)
+            {
+                window.close();
+            }
+            if (event.type == sf::Event::KeyPressed &&
+                event.key.code == sf::Keyboard::Escape)
             {
                 window.close();
             }
