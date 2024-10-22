@@ -25,38 +25,24 @@ enum class SuperShotgunState
 typedef struct DoubleBarrel
 {
     SuperShotgunState state;
+    std::map<SuperShotgunState, std::function<void(sf::Event&)>> mActions;
+    std::map<SuperShotgunState, std::function<void(sf::Event&)>>::iterator iterator;
 
-    void click()
+    void click(sf::Event & input)
     {
-        switch (this->state)
-        {
-        case SuperShotgunState::BarrelFull:
+        if (input.type == sf::Event::MouseButtonPressed && input.mouseButton.button == sf::Mouse::Left)
         {
             this->state = SuperShotgunState::BarrelEmpty;
-            break;
-        }
-        case SuperShotgunState::BarrelEmpty:
-            break;
-        case SuperShotgunState::Reloading:
-            break;
         }
     }
 
-    void reload()
+    void reload(sf::Event & input)
     {
-        switch (this->state)
-        {
-        case SuperShotgunState::BarrelFull:
-            break;
-        case SuperShotgunState::BarrelEmpty:
+        if (input.type == sf::Event::KeyPressed && input.key.code == sf::Keyboard::R)
         {
             this->state = SuperShotgunState::Reloading;
             std::thread start_thread(&DoubleBarrel::_reloadCounter, this);
             start_thread.detach();
-            break;
-        }
-        case SuperShotgunState::Reloading:
-            break;
         }
     }
 
@@ -80,6 +66,14 @@ typedef struct DoubleBarrel
         }
     }
 
+    void readCommand(sf::Event& input)
+    {
+        if (mActions.find(this->state) != mActions.end())
+        {
+            mActions[this->state](input); // Call the action for the current state
+        }
+    }
+
 private:
 
     void _reloadCounter()
@@ -90,22 +84,22 @@ private:
 
 } DoubleBarrel;
 
+class Action {
+public:
 
-std::map<SuperShotgunState, std::function<void(sf::Event&)>> mActions;
+    Action(){}
+    virtual ~Action() {}
 
-DoubleBarrel double_barrel{ SuperShotgunState::BarrelFull };
+    virtual void Start(sf::Event& input) = 0;
+    virtual void Update(sf::Event& input) = 0;
 
-void readCommand(sf::Event& input)
-{
-    auto currentState = double_barrel.getState();
-    if (mActions.find(currentState) != mActions.end())
-    {
-        mActions[currentState](input); // Call the action for the current state
-    }
-}
+private:
+};
 
 int main(void)
 {
+    DoubleBarrel double_barrel{ SuperShotgunState::BarrelFull };
+
     sf::RenderWindow window(sf::VideoMode(650, 400), "GamingCampus - SuperShotgunVisualizer");
 
     string barrel_empty_path = "../../../images/BarrelEmpty.png";
@@ -166,23 +160,10 @@ int main(void)
     stateText.setFillColor(sf::Color::White);
     stateText.setPosition(10, 10);
 
-    // Define actions for each state
-    mActions[SuperShotgunState::BarrelFull] = [&](sf::Event& input)
-        {
-            if (input.type == sf::Event::MouseButtonPressed && input.mouseButton.button == sf::Mouse::Left)
-            {
-                double_barrel.click();
-            }
-        };
+    // Define actions for each state using std::bind
+    double_barrel.mActions[SuperShotgunState::BarrelFull] = std::bind(&DoubleBarrel::click, &double_barrel, std::placeholders::_1);
 
-    mActions[SuperShotgunState::BarrelEmpty] = [&](sf::Event& input)
-        {
-            if (input.type == sf::Event::KeyPressed && input.key.code == sf::Keyboard::R)
-            {
-                double_barrel.reload();
-            }
-        };
-
+    double_barrel.mActions[SuperShotgunState::BarrelEmpty] = std::bind(&DoubleBarrel::reload, &double_barrel, std::placeholders::_1);
 
     // loop :
     // - print state each second.
@@ -202,7 +183,7 @@ int main(void)
                 window.close();
             }
 
-            readCommand(event); // Call the new readCommand function
+            double_barrel.readCommand(event); // Call the new readCommand function
         }
 
         stateText.setString(double_barrel.getStateStr());
