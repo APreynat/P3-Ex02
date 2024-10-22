@@ -1,106 +1,15 @@
 #include "pch.h"
-#include "main.h"
-
-#include <chrono>
-#include <iostream>
-#include <thread>
-#include <map>
-#include <functional>
+#include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+#include "DoubleBarrel.h"
 
 using std::string;
 
-#define COOLPURPLE \
-    CLITERAL(Color) { 153, 0, 0, 255 }  // cool Purple
-
-constexpr int G_RELOAD_TIME = 3;
-
-enum class SuperShotgunState
-{
-    BarrelFull,
-    BarrelEmpty,
-    Reloading
-};
-
-typedef struct DoubleBarrel
-{
-    SuperShotgunState state;
-    std::map<SuperShotgunState, std::function<void(sf::Event&)>> mActions;
-    std::map<SuperShotgunState, std::function<void(sf::Event&)>>::iterator iterator;
-
-    void click(sf::Event & input)
-    {
-        if (input.type == sf::Event::MouseButtonPressed && input.mouseButton.button == sf::Mouse::Left)
-        {
-            this->state = SuperShotgunState::BarrelEmpty;
-        }
-    }
-
-    void reload(sf::Event & input)
-    {
-        if (input.type == sf::Event::KeyPressed && input.key.code == sf::Keyboard::R)
-        {
-            this->state = SuperShotgunState::Reloading;
-            std::thread start_thread(&DoubleBarrel::_reloadCounter, this);
-            start_thread.detach();
-        }
-    }
-
-    SuperShotgunState getState()
-    {
-        return this->state;
-    }
-
-    string getStateStr()
-    {
-        switch (this->state)
-        {
-        case SuperShotgunState::BarrelFull:
-            return "BarrelFull";
-        case SuperShotgunState::BarrelEmpty:
-            return "BarrelEmpty";
-        case SuperShotgunState::Reloading:
-            return "Reloading";
-        default:
-            return "something went horribly wrong";
-        }
-    }
-
-    void readCommand(sf::Event& input)
-    {
-        if (mActions.find(this->state) != mActions.end())
-        {
-            mActions[this->state](input); // Call the action for the current state
-        }
-    }
-
-private:
-
-    void _reloadCounter()
-    {
-        std::this_thread::sleep_for(std::chrono::seconds(G_RELOAD_TIME));
-        this->state = SuperShotgunState::BarrelFull;
-    }
-
-} DoubleBarrel;
-
-class Action {
-public:
-
-    Action(){}
-    virtual ~Action() {}
-
-    virtual void Start(sf::Event& input) = 0;
-    virtual void Update(sf::Event& input) = 0;
-
-private:
-};
-
 int main(void)
 {
-    DoubleBarrel double_barrel{ SuperShotgunState::BarrelFull };
+    DoubleBarrel double_barrel(SuperShotgunState::BarrelFull);
 
-    sf::RenderWindow window(sf::VideoMode(650, 400), "GamingCampus - SuperShotgunVisualizer");
+    sf::RenderWindow window(sf::VideoMode(650, 400), "Double Barrel Shotgun");
 
     string barrel_empty_path = "../../../images/BarrelEmpty.png";
     string barrel_full_path = "../../../images/BarrelFull.png";
@@ -160,14 +69,9 @@ int main(void)
     stateText.setFillColor(sf::Color::White);
     stateText.setPosition(10, 10);
 
-    // Define actions for each state using std::bind
     double_barrel.mActions[SuperShotgunState::BarrelFull] = std::bind(&DoubleBarrel::click, &double_barrel, std::placeholders::_1);
-
     double_barrel.mActions[SuperShotgunState::BarrelEmpty] = std::bind(&DoubleBarrel::reload, &double_barrel, std::placeholders::_1);
 
-    // loop :
-    // - print state each second.
-    // - get user input: Click/Reload/Quit
     while (window.isOpen())
     {
         sf::Event event;
@@ -183,7 +87,7 @@ int main(void)
                 window.close();
             }
 
-            double_barrel.readCommand(event); // Call the new readCommand function
+            double_barrel.readCommand(event);
         }
 
         stateText.setString(double_barrel.getStateStr());
@@ -206,3 +110,4 @@ int main(void)
     }
     return 0;
 }
+
